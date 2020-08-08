@@ -56,6 +56,29 @@ class Secp256k1
         }
     }
 
+    // get a public key from a private key
+    public function GetPublicKeyByPrivate($privateKey)
+    {
+        $publicKey = null;
+        if (NULL == $privateKey) {
+            return false;
+        }
+        if ('string' == gettype($privateKey)) {
+            $privateKey = pack("H*", $privateKey);
+        }
+        $result = secp256k1_ec_pubkey_create($this->Context, $publicKey, $privateKey);
+        if ($result === 1) {
+            $serializeFlags = SECP256K1_EC_COMPRESSED;
+            $serialized = '';
+            if (1 !== secp256k1_ec_pubkey_serialize($this->Context, $serialized, $publicKey, $serializeFlags)) {
+                return NULL;
+            }
+            $this->PublicKey = unpack("H*", $serialized)[1];
+            return $this->PublicKey;
+        } else {
+            return NULL;
+        }
+    }
     public function Sign($message)
     {
         $msg32 = hash('sha256', $message, true);
@@ -137,12 +160,13 @@ class Secp256k1
         return $string;
     }
 
-    public function PrivateKeyTweak($index)
+    public function PrivateKeyTweak($PrivateSeed, $index)
     {
         $tweak = pack("H*", "0000000000000000000000000000000000000000000000000000000000000001");
-        $privateKey = $this->PrivateKey;
+        $privateKey = pack("H*", $PrivateSeed);
         for ($i=0; $i < $index; $i++) { 
-            $result = secp256k1_ec_privkey_tweak_add($this->Context, $this->PrivateKey, $tweak);
+            //var_dump(bin2hex($privateKey), bin2hex($tweak));
+            $result = secp256k1_ec_privkey_tweak_add($this->Context, $privateKey, $tweak);
             if ($result != 1) {
                 throw new \Exception("Invalid private key or augend value");
                 return NULL;
